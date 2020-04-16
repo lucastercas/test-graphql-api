@@ -1,89 +1,80 @@
+import { PubSub } from "apollo-server";
 import { IResolvers } from "graphql-tools";
-import User from "../model/user";
+import bd from "../bd/bd";
+import Admin from "../model/admin";
 import Card from "../model/card";
+import Client from "../model/client";
+import User from "../model/user";
 
-const users: User[] = [
-  {
-    id: 0,
-    name: "vinicius",
-    complete_name: "Vinicius Costa",
-    cpf: "123.123.123-01",
-    active: true,
-    age: 21,
-    cards: [0, 1],
-    accessRule: "CLIENT",
-  },
-  {
-    id: 1,
-    name: "micael",
-    complete_name: "Micael Gomes",
-    cpf: "456.456.456-02",
-    active: false,
-    age: 23,
-    cards: [2],
-    accessRule: "CLIENT",
-  },
-  {
-    id: 2,
-    name: "alisson",
-    complete_name: "Alisson Nsei",
-    cpf: "789.789.789-02",
-    active: true,
-    age: 83,
-    cards: [],
-    accessRule: "ADMIN",
-  },
-];
+const pubsub = new PubSub();
 
-const cards: Card[] = [
-  {
-    id: 0,
-    number: "1234 1234 1234 1234",
-    agency: "1234-0",
-    account: "12.345-0",
-    owner: 0,
-  },
-  {
-    id: 1,
-    number: "5678 5678 5678 5768",
-    agency: "1234-0",
-    account: "12.345-0",
-    owner: 0,
-  },
-  {
-    id: 2,
-    number: "9999 9999 9999 9999",
-    agency: "1234-0",
-    account: "12.345-0",
-    owner: 1,
-  },
-];
+const CLIENT_ADDED = "CLIENT_ADDED";
+const ADMIN_ADDED = "ADMIN_ADDED";
 
 const resolverMap: IResolvers = {
   User: {
-    cards: (parent: User, args: any, ctx: any, info: any): Card[] => {
+    __resolveType: (parent: any, ctx: any, info: any) => {
+      if (parent.cards) return "Client";
+      if (parent.department) return "Admin";
+    },
+  },
+
+  Admin: {},
+
+  Client: {
+    cards: (parent: Client, args: any, ctx: any, info: any): Card[] => {
       const result: Card[] = [];
       parent.cards.forEach((d) => {
-        result.push(cards[d]);
+        result.push(bd.cards[d]);
       });
       return result;
     },
   },
+
   Card: {
-    owner: (parent: Card, args: any, ctx: any, info: any): User =>
-      users[parent.owner],
+    owner: (parent: Card): User => bd.clients[parent.owner],
   },
+
   Query: {
-    users: (): User[] => users,
-    cards: (): Card[] => cards,
-    userById: (_: void, args: any): User => users[args.id],
-    cardById: (_: void, args: any): Card => cards[args.id],
-    userByAccess: (_: void, args: any): User[] => {
-      const result: User[] = [];
-      users.forEach((user: User) => {
-        if (user.accessRule == args.rule) result.push(user);
+    users: (): Array<User> => {
+      const allAdmins: Array<Admin | Client> = bd.admins;
+      const allClients: Array<Admin | Client> = bd.clients;
+      return allAdmins.concat(allClients);
+    },
+    cards: (): Card[] => bd.cards,
+    clients: (): Client[] => bd.clients,
+    admins: (): Admin[] => bd.admins,
+    // userById: (_: void, args: any): User => {},
+    userByEmail: (_: void, args: any): User => {
+      const allAdmins: Array<Admin | Client> = bd.admins;
+      const allClients: Array<Admin | Client> = bd.clients;
+      const allUsers: Array<User> = allAdmins.concat(allClients);
+      allUsers.filter((user) => {
+        if (user.email == args.email) return true;
+        return false;
       });
-      return result;
+      return allUsers[0];
+    },
+    cardById: (_: void, args: any): Card => bd.cards[args.id],
+  },
+
+  Mutation: {
+    addClient: (_: void, { client }: any) => {
+      const newClient = {
+        ...client,
+        id: bd.clients.length,
+        active: true,
+        cards: [],
+      };
+      bd.clients.push(newClient);
+      pubsub.publish(CLIENT_ADDED, { userAdded: newClient });
+      return newClient;
+    },
+  },
+
+  Subscription: {
+    userAdded: {
+      subscribe: () => pubsub.asyncIterator([CLIENT_ADDED, ADMIN_ADDED]),
     },
   },
 };

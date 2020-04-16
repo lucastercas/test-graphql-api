@@ -3,23 +3,48 @@ import compression from "compression";
 import cors from "cors";
 import * as dotenv from "dotenv";
 import express from "express";
-import { createServer } from "http";
+import http from "http";
 import schema from "./schema";
 
 dotenv.config();
 
+// Create and set Express (route handler)
 const app = express();
-
-const server = new ApolloServer({
-  schema,
-});
-
 app.use("*", cors());
 app.use(compression());
-server.applyMiddleware({ app, path: "/graphql" });
 
-const httpServer = createServer(app);
+const sslPath: string = "../assets/ssl/";
+console.log(__dirname);
+// Create and set HTTPS server
+const server = http.createServer(app);
 
-httpServer.listen({ port: 3000 }, () => {
-  console.log(`Listening at localhost:3000/graphql`);
+// Create and set Apollo Server
+const apollo = new ApolloServer({
+  schema,
+  tracing: true,
+  subscriptions: {
+    onConnect: (connectionParams: any, WebSocket) => {
+      if (connectionParams.Authorization) {
+        console.log(
+          `[Subscription] Auth Token: ${connectionParams.Authorization}`
+        );
+        return {};
+      }
+      throw new Error("[Subscription] Missing Auth Token");
+    },
+  },
+  context: async ({ req, connection }) => {
+    if (connection) {
+      return connection.context;
+    } else {
+      const token = req.headers.authorization || "";
+      return { token };
+    }
+  },
+});
+apollo.applyMiddleware({ app, path: "/graphql" });
+apollo.installSubscriptionHandlers(server);
+
+server.listen({ port: 4000 }, () => {
+  console.log(`🚀🚀 Listening at http://localhost:3000/graphql`);
 });
