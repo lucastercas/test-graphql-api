@@ -5,5 +5,5 @@ export default interface User {
   cpf: string;
   active: boolean;
   age: number;
-  email: string
+  email: string;
 }

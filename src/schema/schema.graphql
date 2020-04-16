@@ -6,13 +6,21 @@ type Card {
   owner: User!
 }
 
+"""
+User Description
+"""
 interface User {
+  """
+  Description for field
+  Supports multi-line description
+  """
   id: ID!
   name: String!
   complete_name: String!
   cpf: String!
   active: Boolean!
-  age: Int
+  age: Int!
+  email: String!
 }
 
 type Client implements User {
@@ -21,7 +29,8 @@ type Client implements User {
   complete_name: String!
   cpf: String!
   active: Boolean!
-  age: Int
+  email: String!
+  age: Int!
   cards: [Card]
 }
 
@@ -31,7 +40,8 @@ type Admin implements User {
   complete_name: String!
   cpf: String!
   active: Boolean!
-  age: Int
+  email: String!
+  age: Int!
   department: String!
 }
 
@@ -51,6 +61,7 @@ input ClientInput {
   complete_name: String!
   cpf: String!
   age: Int!
+  email: String!
 }
 
 input AdminInput {
