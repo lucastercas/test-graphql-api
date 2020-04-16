@@ -1,0 +1,31 @@
+enum AccessType {
+  ADMIN
+  CLIENT
+}
+
+type User {
+  id: ID!
+  name: String!
+  complete_name: String!
+  cpf: String!
+  active: Boolean!
+  age: Int
+  cards: [Card]
+  accessRule: AccessType!
+}
+
+type Card {
+  id: ID!
+  number: String!
+  agency: String!
+  account: String
+  owner: User!
+}
+
+type Query {
+  users: [User]
+  cards: [Card]
+  userById(id: ID!): User
+  cardById(id: ID!): Card
+  userByAccess(rule: AccessType): [User]
+}
